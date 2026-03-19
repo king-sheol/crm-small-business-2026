@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM системы для малого бизнеса 2026 — Dashboard</title>
+
+    <!-- ECharts 5 -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+
+    <!-- AG Grid 31 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31/styles/ag-grid.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31/styles/ag-theme-alpine.css">
+    <script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31/dist/ag-grid-community.min.js"></script>
+
+    <!-- Tailwind CSS (dark mode via class) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        base:    '#0f172a',
+                        surface: '#1e293b',
+                        border:  '#334155',
+                    }
+                }
+            }
+        };
+    </script>
+
+    <!-- Lucide Icons 0.460 -->
+    <script src="https://unpkg.com/lucide@0.460"></script>
+
+    <style>
+        :root {
+            --color-base: #0f172a;
+            --color-surface: #1e293b;
+            --color-border: #334155;
+            --color-text: #f1f5f9;
+            --color-text-secondary: #94a3b8;
+            --color-text-muted: #64748b;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            font-variant-numeric: tabular-nums;
+            background: var(--color-base);
+            color: var(--color-text);
+            margin: 0;
+            padding: 0;
+        }
+
+        .ag-theme-alpine-dark {
+            --ag-background-color: #1e293b;
+            --ag-header-background-color: #334155;
+            --ag-odd-row-background-color: #1e293b;
+            --ag-row-hover-color: #334155;
+            --ag-border-color: #334155;
+            --ag-foreground-color: #f1f5f9;
+            --ag-secondary-foreground-color: #94a3b8;
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(96, 165, 250, 0.15);
+            transition: all 0.3s ease;
+        }
+        .glass-card:hover {
+            border-color: rgba(96, 165, 250, 0.4);
+            box-shadow: 0 0 20px rgba(96, 165, 250, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .ag-body-viewport { overflow-y: auto !important; }
+
+        .badge-yes { background: #059669; color: #fff; border-radius: 9999px; font-size: 11px; padding: 2px 8px; display: inline-block; }
+        .badge-no { background: #dc2626; color: #fff; border-radius: 9999px; font-size: 11px; padding: 2px 8px; display: inline-block; }
+        .badge-partial { background: #d97706; color: #fff; border-radius: 9999px; font-size: 11px; padding: 2px 8px; display: inline-block; }
+        .badge-na { background: #475569; color: #94a3b8; border-radius: 9999px; font-size: 11px; padding: 2px 8px; display: inline-block; }
+
+        .rating-stars { color: #fbbf24; font-size: 14px; letter-spacing: 1px; white-space: nowrap; }
+        .rating-stars .empty { color: #475569; }
+
+        .skeleton {
+            background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+            background-size: 200% 100%;
+            animation: skeleton-pulse 1.5s ease-in-out infinite;
+            border-radius: 8px;
+        }
+        @keyframes skeleton-pulse {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .skeleton-kpi { height: 96px; }
+        .skeleton-chart { height: 400px; }
+        .skeleton-table { height: 300px; }
+
+        #detail-panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 420px;
+            height: 100vh;
+            background: #1e293b;
+            border-left: 1px solid #334155;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+            z-index: 50;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+        #detail-panel.open { transform: translateX(0); }
+        #detail-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 40;
+            display: none;
+        }
+        #detail-overlay.open { display: block; }
+
+        .range-slider-track {
+            position: relative;
+            height: 6px;
+            background: #334155;
+            border-radius: 3px;
+            margin: 12px 0;
+        }
+        .range-slider-fill {
+            position: absolute;
+            height: 100%;
+            background: #60a5fa;
+            border-radius: 3px;
+        }
+        .range-slider-handle {
+            position: absolute;
+            top: 50%;
+            width: 16px;
+            height: 16px;
+            background: #60a5fa;
+            border: 2px solid #f1f5f9;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: grab;
+            z-index: 2;
+        }
+        .range-slider-handle:active { cursor: grabbing; }
+        .range-slider-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #94a3b8;
+        }
+
+        .dashboard-footer {
+            border-top: 1px solid #334155;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            color: #64748b;
+            font-size: 12px;
+        }
+        .dashboard-footer a { color: #60a5fa; text-decoration: none; }
+        .dashboard-footer a:hover { text-decoration: underline; }
+
+        .detail-field { margin-bottom: 1rem; }
+        .detail-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; margin-bottom: 4px; }
+        .detail-value { font-size: 14px; color: #f1f5f9; line-height: 1.5; }
+
+        @media (max-width: 768px) {
+            #filter-sidebar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 280px;
+                height: 100vh;
+                background: #0f172a;
+                z-index: 30;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+                padding: 1.5rem;
+                border-right: 1px solid #334155;
+                overflow-y: auto;
+            }
+            #filter-sidebar.open { transform: translateX(0); }
+            #sidebar-toggle { display: flex !important; }
+            #kpi-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (min-width: 769px) {
+            #sidebar-toggle { display: none !important; }
+        }
+    </style>
+</head>
+<body class="bg-base min-h-screen">
+
+    <!-- Header -->
+    <header class="border-b border-border px-6 py-4">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-white">CRM системы для малого бизнеса 2026</h1>
+                <p class="text-sm text-slate-400 mt-1">
+                    Дата сбора: 2026-03-19 &middot; Записей: <span id="record-count">0</span> &middot; Источников: 7
+                </p>
+            </div>
+            <button id="sidebar-toggle" onclick="toggleSidebar()"
+                    class="items-center gap-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-slate-300 hover:bg-border transition"
+                    style="display:none;">
+                <i data-lucide="sliders-horizontal" class="w-4 h-4"></i> Фильтры
+            </button>
+        </div>
+    </header>
+
+    <!-- KPI Grid -->
+    <div id="kpi-grid" class="grid grid-cols-2 md:grid-cols-4 gap-4 px-6 py-4"></div>
+
+    <!-- Main layout: sidebar filters + content -->
+    <div class="flex px-6 gap-6">
+
+        <!-- Sidebar Filters -->
+        <aside id="filter-sidebar" class="w-64 flex-shrink-0 space-y-4 pr-6 border-r border-border">
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">Поиск</label>
+                <input id="search-input" type="text" placeholder="Поиск по всем данным..."
+                       class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                       oninput="applyFilters()">
+            </div>
+            <div id="filter-dropdowns"></div>
+            <div id="filter-range-sliders"></div>
+            <button onclick="resetFilters()"
+                    class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-slate-300 hover:bg-border transition">
+                Сбросить фильтры
+            </button>
+        </aside>
+
+        <!-- Main content -->
+        <main class="flex-1 space-y-6 pb-8">
+            <!-- Primary chart -->
+            <section class="bg-surface rounded-xl border border-border p-4">
+                <h2 class="text-lg font-semibold mb-3">Топ-20 CRM по рейтингу</h2>
+                <div id="chart-primary" style="height:500px;"></div>
+            </section>
+
+            <!-- Comparison chart -->
+            <section class="bg-surface rounded-xl border border-border p-4">
+                <h2 class="text-lg font-semibold mb-3">Цена vs Рейтинг</h2>
+                <div id="chart-comparison" style="height:420px;"></div>
+            </section>
+
+            <!-- Table -->
+            <section class="bg-surface rounded-xl border border-border p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-lg font-semibold">Все CRM системы</h2>
+                    <button onclick="exportCsv()"
+                            class="flex items-center gap-1 px-3 py-1.5 bg-transparent border border-border rounded-lg text-sm text-slate-300 hover:bg-surface transition">
+                        <i data-lucide="download" class="w-4 h-4"></i> Экспорт CSV
+                    </button>
+                </div>
+                <div id="data-table" class="ag-theme-alpine-dark" style="height:600px;width:100%;"></div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Detail Panel (slide-in) -->
+    <div id="detail-overlay" onclick="closeDetailPanel()"></div>
+    <div id="detail-panel">
+        <div class="flex items-center justify-between mb-4">
+            <h3 id="detail-title" class="text-lg font-semibold">Детали</h3>
+            <button onclick="closeDetailPanel()" class="text-slate-400 hover:text-white">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div id="detail-content"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="dashboard-footer px-6">
+        <span>Дата сбора: 2026-03-19 &middot; Источников: 7</span>
+        <span>Сгенерировано Superscraper</span>
+    </div>
+
+<script>
+// === BOM STRIP & DATA ===
+const allData = [
+{"Название":"Аспро.Cloud","Сайт":"aspro.cloud","Бесплатный тариф":"Да","Цена (мин. платный)":"2090 руб/мес (Старт, до 5 пользователей)","Цена (руб/мес)":2090,"Рейтинг":"4.9 (92 отзыва)","Рейтинг (число)":4.9,"Аудитория":"Малый и средний бизнес, управление проектами и продажами","Ключевые функции":"CRM, управление проектами, финансовый учет","Мобильное приложение":"N/A","Интеграции":"20 сервисов (JivoSite, Модульбанк, Точка, Новофон, Mango Office и др.)","Русский интерфейс":"Да","Источник":"https://a2is.ru/catalog/planirovanie/aspro-cloud","Дата сбора":"2026-03-19","Найден в источниках":2},
+{"Название":"ПланФикс","Сайт":"planfix.ru","Бесплатный тариф":"Да","Цена (мин. платный)":"от 360 ₽/мес","Цена (руб/мес)":360,"Рейтинг":"4.8 (143 отзыва)","Рейтинг (число)":4.8,"Аудитория":"Малый и средний бизнес, команды","Ключевые функции":"Задачи сотрудникам, управление проектами, общение с клиентами, распределение заявок","Мобильное приложение":"N/A","Интеграции":"Автоматизация и настраиваемые маршруты","Русский интерфейс":"Да","Источник":"https://a2is.ru/catalog/spiski-lichnyh-del-i-zametki/planfix","Дата сбора":"2026-03-19","Найден в источниках":3},
+{"Название":"Битрикс24","Сайт":"bitrix24.ru","Бесплатный тариф":"Да","Цена (мин. платный)":"2490 руб/мес (за всю компанию)","Цена (руб/мес)":2490,"Рейтинг":"4.3 (146 отзывов)","Рейтинг (число)":4.3,"Аудитория":"Малый, средний и крупный бизнес любого направления","Ключевые функции":"База клиентов, воронка продаж, задачи и напоминания, диаграмма Ганта, email-рассылка, аналитика, телефония, складской учет, мобильное приложение, соцсети, создание сайтов","Мобильное приложение":"Да (Android, iOS)","Интеграции":"Соцсети, телефония, почта, 1С и др.","Русский интерфейс":"Да","Источник":"https://a2is.ru/catalog/rejting-crm-sistem/bitriks24","Дата сбора":"2026-03-19","Найден в источниках":5},
+{"Название":"RetailCRM","Сайт":"retailcrm.ru","Бесплатный тариф":"Да","Цена (мин. платный)":"10400 руб/мес (Профессиональный, до 3 пользователей)","Цена (руб/мес)":10400,"Рейтинг":"4.5 (40 отзывов)","Рейтинг (число)":4.5,"Аудитория":"Интернет-торговля","Ключевые функции":"CRM для интернет-торговли, автоматизация бизнес-процессов","Мобильное приложение":"Да","Интеграции":"51 сервис (Google Analytics, Яндекс.Метрика, Roistat, JivoSite, InSales, Sipnet и др.)","Русский интерфейс":"Да","Источник":"https://a2is.ru/catalog/crm-sistemy-vse/retailcrm","Дата сбора":"2026-03-19","Найден в источниках":4},
+{"Название":"CRM Простой бизнес","Сайт":"prostoy.ru","Бесплатный тариф":"Да","Цена (мин. платный)":"от 2 990 ₽/мес","Цена (руб/мес)":2990,"Рейтинг":"4.9 (30 отзывов)","Рейтинг (число)":4.9,"Аудитория":"Малый и средний бизнес","Ключевые функции":"Управление всей компанией, больше чем просто CRM","Мобильное приложение":"N/A","Интеграции":"Реклама, формы, госорганы (ЭДО)","Русский интерфейс":"Да","Источник":"https://a2is.ru/catalog/besplatnye-crm/prostoj-biznes","Дата сбора":"2026-03-19","Найден в источниках":2},
+{"Название":"S2","Сайт":"salesap.ru","Бесплатный тариф":"Да","Цена (мин. платный)":"500 руб/мес (тариф Старт)","Цена (руб/мес)":500,"Рейтинг":"4.7 (27 отзывов)","Рейтинг (число)":4.7,"Аудитория":"Бизнес любого масштаба и сферы деятельности","Ключевые функции":"Продажи, сервис, коммуникации, документация, отчеты, аналитика, дашборды, управление задачами/проектами, финансы, телефония, производство, складской учет, бронирование","Мобильное приложение":"Да (Android, iOS)","Интеграции":"150+ интеграций по API (1С, банки, сайт, почта, телефония)","Русский интерфейс":"Да","Источник":"https://a2is.ru/catalog/crm-sistemy-vse/salesapcrm","Дата сбора":"2026-03-19","Найден в источниках":2},
+{"Название":"Мегаплан","Сайт":"megaplan.ru","Бесплатный тариф":"Да","Цена (мин. платный)":"от 450 ₽/мес за пользователя","Цена (руб/мес)":450,"Рейтинг":"4.5 (18 отзывов)","Рейтинг (число)":4.5,"Аудитория":"Малый и средний бизнес","Ключевые функции":"Управление компанией, CRM","Мобильное приложение":"N/A","Интеграции":"Звонки, письма, сообщения","Русский интерфейс":"Да","Источник":"https://a2is.ru/catalog/crm-sistemy-vse/megaplan","Дата сбора":"2026-03-19","Найден в источниках":3},
+{"Название":"StecRealty","Сайт":"stecrealty.ru","Бесплатный тариф":"Да","Цена (мин. платный)":"N/A","Цена (руб/мес)":null,"Рейтинг":"3.5 (4 отзыва)","Рейтинг (число)":3.5,"Аудитория":"Застройщики и агентства недвижимости","Ключевые функции":"Облачная CRM для недвижимости","Мобильное приложение":"N/A","Интеграции":"N/A","Русский интерфейс":"Да","Источник":"https://a2is.ru/catalog/programmy-dlya-agentstva-nedvizhimosti/stecrealty","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"KeepinCRM","Сайт":"keepincrm.com","Бесплатный тариф":"Да","Цена (мин. платный)":"N/A","Цена (руб/мес)":null,"Рейтинг":"5.0 (1 отзыв)","Рейтинг (число)":5.0,"Аудитория":"Малый и средний бизнес","Ключевые функции":"Онлайн CRM система","Мобильное приложение":"N/A","Интеграции":"N/A","Русский интерфейс":"Да","Источник":"https://a2is.ru/catalog/crm-sistemy-vse/keepincrm","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"Cloff CRM","Сайт":"cloff.ru","Бесплатный тариф":"Да","Цена (мин. платный)":"N/A","Цена (руб/мес)":null,"Рейтинг":"5.0 (1 отзыв)","Рейтинг (число)":5.0,"Аудитория":"Бизнес любого профиля","Ключевые функции":"Контроль бизнеса, экономия на оборудовании, оптимизация телефонии и бизнес-процессов","Мобильное приложение":"N/A","Интеграции":"N/A","Русский интерфейс":"Да","Источник":"https://a2is.ru/catalog/crm-sistemy-vse/cloff","Дата сбора":"2026-03-19","Найден в источниках":2},
+{"Название":"offlineCRM","Сайт":"offlinecrm.ru","Бесплатный тариф":"Да","Цена (мин. платный)":"Нет платных тарифов","Цена (руб/мес)":null,"Рейтинг":"0 (0 отзывов)","Рейтинг (число)":0,"Аудитория":"Малый бизнес, не требующий облачного доступа","Ключевые функции":"Автономная CRM, работает без интернета, данные хранятся локально на ПК","Мобильное приложение":"Нет (десктоп)","Интеграции":"Нет (автономная система)","Русский интерфейс":"Да","Источник":"https://a2is.ru/catalog/besplatnye-crm/offlinecrm","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"PARADOX CRM","Сайт":"N/A","Бесплатный тариф":"Да","Цена (мин. платный)":"N/A","Цена (руб/мес)":null,"Рейтинг":"0 (0 отзывов)","Рейтинг (число)":0,"Аудитория":"Учебные центры","Ключевые функции":"Учет учеников и оплат, расписание, контроль посещаемости, работа с родителями","Мобильное приложение":"N/A","Интеграции":"Простая интеграция (детали не указаны)","Русский интерфейс":"Да","Источник":"https://a2is.ru/catalog/besplatnye-crm/paradox-crm","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"РосБизнесСофт CRM","Сайт":"rbs-crm.ru","Бесплатный тариф":"N/A","Цена (мин. платный)":"N/A","Цена (руб/мес)":null,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Малый и средний бизнес; управление клиентами, поставщиками, автоматизация производства","Ключевые функции":"Управление клиентами, поставщиками, автоматизация производства, сервисное обслуживание","Мобильное приложение":"N/A","Интеграции":"N/A","Русский интерфейс":"Да","Источник":"https://crmindex.ru/products/rosbiznesssoft","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"BPM2B CRM","Сайт":"bpm2b.ru","Бесплатный тариф":"N/A","Цена (мин. платный)":"N/A","Цена (руб/мес)":null,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Малый и средний бизнес","Ключевые функции":"Low-code платформа, автоматизация продаж, сервис, поддержка","Мобильное приложение":"N/A","Интеграции":"N/A","Русский интерфейс":"Да","Источник":"https://crmindex.ru/products/bpm2b","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"SimpleOne B2B CRM","Сайт":"simpleone.ru","Бесплатный тариф":"Нет","Цена (мин. платный)":"Индивидуальный расчёт","Цена (руб/мес)":null,"Рейтинг":"CNewsMarket: 2-е место, AI: 82 балла","Рейтинг (число)":null,"Аудитория":"B2B-компании, корпоративный маркетинг","Ключевые функции":"Управление сложными B2B-продажами, корпоративный маркетинг, Low-code инструменты","Мобильное приложение":"N/A","Интеграции":"DaData, настраиваемый обмен данными через API","Русский интерфейс":"Да","Источник":"https://crmindex.ru/products/simpleone_b2b","Дата сбора":"2026-03-19","Найден в источниках":3},
+{"Название":"Мой Класс","Сайт":"moyklass.com","Бесплатный тариф":"N/A","Цена (мин. платный)":"N/A","Цена (руб/мес)":null,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Школы, детские центры, тренинговые центры, творческие центры обучения","Ключевые функции":"Календарь занятий, абонементы, оповещения Telegram/WhatsApp, телефония, интеграция с сайтом","Мобильное приложение":"N/A","Интеграции":"Telegram, WhatsApp, телефония","Русский интерфейс":"Да","Источник":"https://crmindex.ru/products/moyklass","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"ПроМастер","Сайт":"scsoft.ru","Бесплатный тариф":"N/A","Цена (мин. платный)":"N/A","Цена (руб/мес)":null,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Сервисные центры, мастерские","Ключевые функции":"Учет заказов, база клиентов, складской учет, продажи, SMS-уведомления","Мобильное приложение":"N/A","Интеграции":"N/A","Русский интерфейс":"Да","Источник":"https://crmindex.ru/products/scsoft","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"Salesforce","Сайт":"salesforce.com","Бесплатный тариф":"Да","Цена (мин. платный)":"$25/user/month (Starter Suite)","Цена (руб/мес)":25,"Рейтинг":"3.7/5 (Expert Market)","Рейтинг (число)":3.7,"Аудитория":"Large and expanding businesses","Ключевые функции":"Lead management, email integration, pipeline monitoring, AI lead scoring, 4000+ integrations, advanced analytics","Мобильное приложение":"Да","Интеграции":"4000+ apps","Русский интерфейс":"Нет","Источник":"https://www.expertmarket.com/crm/compare-pricing","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"Zendesk","Сайт":"zendesk.com","Бесплатный тариф":"Нет","Цена (мин. платный)":"$19/user/month","Цена (руб/мес)":19,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Customer service-driven businesses","Ключевые функции":"Customer service CRM, support tickets, VoIP integration","Мобильное приложение":"N/A","Интеграции":"N/A","Русский интерфейс":"Нет","Источник":"https://www.expertmarket.com/crm/compare-pricing","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"monday CRM","Сайт":"monday.com","Бесплатный тариф":"Да","Цена (мин. платный)":"$12/user/month (Basic, billed annually)","Цена (руб/мес)":12,"Рейтинг":"4.2/5 (Expert Market)","Рейтинг (число)":4.2,"Аудитория":"Small to medium startups","Ключевые функции":"Lead management, customization, email integration, invoices, sales forecasting, 150+ integrations","Мобильное приложение":"Да (iOS и Android)","Интеграции":"150+ integrations (app store)","Русский интерфейс":"Нет","Источник":"https://www.expertmarket.com/crm/compare-pricing","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"Zoho CRM","Сайт":"zoho.com","Бесплатный тариф":"Да","Цена (мин. платный)":"$14/user/month (Standard, billed annually)","Цена (руб/мес)":14,"Рейтинг":"4.7/5 (Expert Market)","Рейтинг (число)":4.7,"Аудитория":"Budget-conscious businesses","Ключевые функции":"Sales forecasting, calendar booking, lead scoring, custom dashboards, workflow automation, customizable layouts","Мобильное приложение":"Да","Интеграции":"5-50 integrations (depends on plan)","Русский интерфейс":"Нет","Источник":"https://www.expertmarket.com/crm/compare-pricing","Дата сбора":"2026-03-19","Найден в источниках":2},
+{"Название":"Pipedrive","Сайт":"pipedrive.com","Бесплатный тариф":"Нет","Цена (мин. платный)":"$14/user/month (Lite, billed annually)","Цена (руб/мес)":14,"Рейтинг":"4.2/5 (Expert Market)","Рейтинг (число)":4.2,"Аудитория":"Sales-focused businesses","Ключевые функции":"AI sales assistant, 36 preset workflow automations, custom pipelines, insights dashboards, e-signatures, lead scoring","Мобильное приложение":"Да","Интеграции":"Third-party integrations (количество не указано)","Русский интерфейс":"Нет","Источник":"https://www.expertmarket.com/crm/compare-pricing","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"Freshsales CRM","Сайт":"freshworks.com","Бесплатный тариф":"Да","Цена (мин. платный)":"$0/user/month (free plan available); платный от $39/user/month (mid-tier)","Цена (руб/мес)":39,"Рейтинг":"3.0/5.0","Рейтинг (число)":3.0,"Аудитория":"Fast-growing businesses","Ключевые функции":"Task/deal/account management, Kanban boards, email templates, email sync, phone dialer, basic reports, website tracking, AI chatbot","Мобильное приложение":"N/A","Интеграции":"N/A","Русский интерфейс":"Нет","Источник":"https://www.expertmarket.com/crm/compare-pricing","Дата сбора":"2026-03-19","Найден в источниках":2},
+{"Название":"HubSpot","Сайт":"hubspot.com","Бесплатный тариф":"Да","Цена (мин. платный)":"$15/user/month (Starter Customer Platform, billed annually)","Цена (руб/мес)":15,"Рейтинг":"4.3/5 (Expert Market)","Рейтинг (число)":4.3,"Аудитория":"Marketing and sales-driven businesses","Ключевые функции":"Bundle pricing (Marketing/Sales/Service Hubs), email marketing, automation, custom reporting, contact scoring","Мобильное приложение":"Да","Интеграции":"Multiple platforms (Marketing Hub, Sales Hub, Service Hub)","Русский интерфейс":"Нет","Источник":"https://www.expertmarket.com/crm/compare-pricing","Дата сбора":"2026-03-19","Найден в источниках":2},
+{"Название":"SugarCRM","Сайт":"sugarcrm.com","Бесплатный тариф":"Нет","Цена (мин. платный)":"$19/user/month (billed annually)","Цена (руб/мес)":19,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Businesses with specific workflows","Ключевые функции":"Sales ($19-$135/user/mo), Customer Service ($80/user/mo), Marketing ($1000/mo)","Мобильное приложение":"N/A","Интеграции":"N/A","Русский интерфейс":"Нет","Источник":"https://www.expertmarket.com/crm/compare-pricing","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"Agile CRM","Сайт":"agilecrm.com","Бесплатный тариф":"Да","Цена (мин. платный)":"$14.99/пользователь/мес.","Цена (руб/мес)":14,"Рейтинг":"4.9/5.0","Рейтинг (число)":4.9,"Аудитория":"End-to-end workflows, SMB","Ключевые функции":"Lead scoring, email campaigns, landing page, email tracking, contact management, appointment scheduling, form builder, Kanban boards","Мобильное приложение":"N/A","Интеграции":"1 интеграция на бесплатном тарифе","Русский интерфейс":"Нет","Источник":"https://www.forbes.com/advisor/business/software/best-free-crms/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"Bigin by Zoho CRM","Сайт":"bigin.com","Бесплатный тариф":"Да","Цена (мин. платный)":"$9/пользователь/мес.","Цена (руб/мес)":null,"Рейтинг":"4.1/5.0","Рейтинг (число)":4.1,"Аудитория":"Solopreneurs","Ключевые функции":"Automations (3), built-in phone, integrations, mobile apps, pipeline management","Мобильное приложение":"Да","Интеграции":"Да, включая сторонние VoIP-сервисы","Русский интерфейс":"Нет","Источник":"https://www.forbes.com/advisor/business/software/best-free-crms/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"Capsule CRM","Сайт":"capsulecrm.com","Бесплатный тариф":"Да","Цена (мин. платный)":"$21/пользователь/мес.","Цена (руб/мес)":21,"Рейтинг":"3.9/5.0","Рейтинг (число)":3.9,"Аудитория":"Startups, integrations-focused teams","Ключевые функции":"1000+ integrations via Zapier, API access, Gmail/Outlook integration, Kanban board, sales pipeline, task management","Мобильное приложение":"Да","Интеграции":"1000+ через Zapier, Gmail, Outlook, API","Русский интерфейс":"Нет","Источник":"https://www.forbes.com/advisor/business/software/best-free-crms/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"YouGile CRM","Сайт":"https://ru.yougile.com/p/h260305/crm","Бесплатный тариф":"Да","Цена (мин. платный)":"от 495 ₽/мес за пользователя (с 11-го)","Цена (руб/мес)":495,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Малый бизнес, ИП","Ключевые функции":"Управление сделками, база клиентов, кастомные поля, корпоративный мессенджер, интеграции с мессенджерами, 50+ инструментов для сделок","Мобильное приложение":"Да (Android и iOS)","Интеграции":"Мессенджеры, кроссплатформенность (веб, десктоп, мобильное)","Русский интерфейс":"Да","Источник":"https://habr.com/ru/companies/yougile/articles/1006582/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"FreshOffice","Сайт":"https://www.freshoffice.ru/","Бесплатный тариф":"Нет","Цена (мин. платный)":"750 ₽/мес за пользователя","Цена (руб/мес)":750,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Малый и средний бизнес","Ключевые функции":"CRM, почта, документы, аналитика, задачи, контроль исполнения, IP-телефония, связь рекламы с заявками","Мобильное приложение":"N/A","Интеграции":"Мессенджеры, соцсети, онлайн-чат, почта, IP-телефония","Русский интерфейс":"Да","Источник":"https://habr.com/ru/companies/yougile/articles/1006582/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"Weeek","Сайт":"https://weeek.net/ru/services/crm","Бесплатный тариф":"Да","Цена (мин. платный)":"от 199 ₽/мес за пользователя","Цена (руб/мес)":199,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Digital-команды, агентства, дизайнеры, продуктовые команды","Ключевые функции":"Гибкие воронки, карточка клиента, CRM в связке с задачами, отчёты по продажам","Мобильное приложение":"N/A","Интеграции":"Встроено в платформу управления задачами и проектами","Русский интерфейс":"Да","Источник":"https://habr.com/ru/companies/yougile/articles/1006582/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"Envybox","Сайт":"https://envybox.io/products/envycrm/","Бесплатный тариф":"Нет","Цена (мин. платный)":"720 ₽/мес за сотрудника","Цена (руб/мес)":720,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Лидогенерация, быстрые продажи","Ключевые функции":"Сбор заявок в одном месте, история общения, лидогенерация из CRM","Мобильное приложение":"N/A","Интеграции":"Сайт, чаты, мессенджеры, телефония","Русский интерфейс":"Да","Источник":"https://habr.com/ru/companies/yougile/articles/1006582/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"Первая Форма","Сайт":"https://1forma.ru/","Бесплатный тариф":"Нет","Цена (мин. платный)":"от 990 ₽/мес за пользователя (облако)","Цена (руб/мес)":990,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Бизнес с длинным циклом сделок, формализованные процессы","Ключевые функции":"Low-code CRM, документооборот, маршруты согласований, омниканальные обращения, гибкая настройка процессов","Мобильное приложение":"N/A","Интеграции":"Сайт, мессенджеры, телефония, email","Русский интерфейс":"Да","Источник":"https://habr.com/ru/companies/yougile/articles/1006582/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"amoCRM","Сайт":"https://www.amocrm.ru/","Бесплатный тариф":"Нет","Цена (мин. платный)":"от 599 ₽/мес за пользователя","Цена (руб/мес)":599,"Рейтинг":"Топ-10 КП","Рейтинг (число)":null,"Аудитория":"Крупный бизнес, активные продажи","Ключевые функции":"Воронки продаж, маркетплейс интеграций, API, автоматизации, фокус на карточках сделок","Мобильное приложение":"Да (урезанный функционал)","Интеграции":"Мессенджеры, звонки, формы с сайта, маркетплейс интеграций","Русский интерфейс":"Да","Источник":"https://habr.com/ru/companies/yougile/articles/1006582/","Дата сбора":"2026-03-19","Найден в источниках":3},
+{"Название":"SberCRM","Сайт":"https://sbercrm.com/","Бесплатный тариф":"Да","Цена (мин. платный)":"от 80 ₽/мес за пользователя (Профессиональный тариф)","Цена (руб/мес)":80,"Рейтинг":"Выбор редакции КП","Рейтинг (число)":null,"Аудитория":"Крупный бизнес","Ключевые функции":"Напоминания, история взаимодействия, прогнозирование продаж, отраслевые решения","Мобильное приложение":"Да","Интеграции":"Экосистема Сбера","Русский интерфейс":"Да","Источник":"https://habr.com/ru/companies/yougile/articles/1006582/","Дата сбора":"2026-03-19","Найден в источниках":3},
+{"Название":"Платформа Кб","Сайт":"https://clientbase.ru/","Бесплатный тариф":"Нет","Цена (мин. платный)":"от 1 590 ₽/мес за пользователя","Цена (руб/мес)":1590,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Кастомизация процессов","Ключевые функции":"CRM/ERP-платформа, конструктор бизнес-логики, автоматизация, телефония, почта, связь CRM с задачами","Мобильное приложение":"N/A","Интеграции":"Телефония, почта","Русский интерфейс":"Да","Источник":"https://habr.com/ru/companies/yougile/articles/1006582/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"AtomicCRM","Сайт":"https://marmelab.com/atomic-crm/","Бесплатный тариф":"Да","Цена (мин. платный)":"Бесплатно (затраты на хостинг и поддержку)","Цена (руб/мес)":null,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Open-source решения, разработчики","Ключевые функции":"Клиенты, сделки, задачи, заметки, интеграция с другими сервисами, хранение данных на своём сервере","Мобильное приложение":"N/A","Интеграции":"Интеграция с существующими сервисами","Русский интерфейс":"N/A","Источник":"https://habr.com/ru/companies/yougile/articles/1006582/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"OdooCRM","Сайт":"https://www.odoo.com/ru_RU","Бесплатный тариф":"Да","Цена (мин. платный)":"от 11,90 €/мес за доп. модуль","Цена (руб/мес)":11,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Open-source, модульная система","Ключевые функции":"CRM-модуль в экосистеме (продажи, склад, финансы, учёт), воронка и прогнозы","Мобильное приложение":"N/A","Интеграции":"Модульная экосистема Odoo","Русский интерфейс":"Да","Источник":"https://habr.com/ru/companies/yougile/articles/1006582/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"SuiteCRM","Сайт":"https://suitecrm.ru/","Бесплатный тариф":"Да","Цена (мин. платный)":"Бесплатно (затраты на хостинг и настройку)","Цена (руб/мес)":null,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Open-source, корпоративные решения","Ключевые функции":"Контакты, компании, сделки, задачи, календарь, автоматизация процессов, безопасность данных","Мобильное приложение":"N/A","Интеграции":"Автоматизация сценариев и правил","Русский интерфейс":"Да","Источник":"https://habr.com/ru/companies/yougile/articles/1006582/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"EspoCRM","Сайт":"https://www.espocrm.com/","Бесплатный тариф":"Да","Цена (мин. платный)":"от 15 $/мес за пользователя (облако)","Цена (руб/мес)":15,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Open-source, гибкая настройка, разработчики","Ключевые функции":"Планирование действий по сделкам, маркетинговые инструменты, рассылки, шаблоны","Мобильное приложение":"N/A","Интеграции":"Почта, шаблоны, массовые рассылки","Русский интерфейс":"N/A","Источник":"https://habr.com/ru/companies/yougile/articles/1006582/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"HelloClient","Сайт":"helloclient.ru","Бесплатный тариф":"Нет","Цена (мин. платный)":"788 руб. за 1 точку продаж","Цена (руб/мес)":788,"Рейтинг":"Топ-10 КП","Рейтинг (число)":null,"Аудитория":"Малый бизнес в сфере услуг (автомастерские, йога-студии, ремонт смартфонов)","Ключевые функции":"Продажи, складской учет, финансовая аналитика, менеджмент сотрудников, онлайн-касса, начисление зарплаты","Мобильное приложение":"Да","Интеграции":"Онлайн-кассы","Русский интерфейс":"Да","Источник":"https://www.kp.ru/money/biznes/luchshie-crm-sistemy-dlya-malogo-biznesa/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"Brizo CRM","Сайт":"brizo.ru","Бесплатный тариф":"Нет","Цена (мин. платный)":"9 588 руб./год за сотрудника (при разовой оплате)","Цена (руб/мес)":799,"Рейтинг":"Топ-10 КП","Рейтинг (число)":null,"Аудитория":"Малый бизнес (продажи, финансы)","Ключевые функции":"Продажи, финансовая аналитика, менеджмент сотрудников, воронка продаж, кассовые разрывы, календарь платежей, бюджетирование","Мобильное приложение":"Да (урезанный функционал)","Интеграции":"IP-телефония, мессенджеры, планировщики","Русский интерфейс":"Да","Источник":"https://www.kp.ru/money/biznes/luchshie-crm-sistemy-dlya-malogo-biznesa/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"Бизнес.ру","Сайт":"biznes.ru","Бесплатный тариф":"Да","Цена (мин. платный)":"375 руб./мес (при оплате за год)","Цена (руб/мес)":31,"Рейтинг":"Топ-10 КП","Рейтинг (число)":null,"Аудитория":"Малый и средний бизнес (торговля)","Ключевые функции":"Продажи, финансовая аналитика, складской учет, ЕГАИС, маркировка, кассы, онлайн-магазин, дисконтная система","Мобильное приложение":"Да","Интеграции":"ЕГАИС, системы обязательной маркировки, кассы","Русский интерфейс":"Да","Источник":"https://www.kp.ru/money/biznes/luchshie-crm-sistemy-dlya-malogo-biznesa/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"WireCRM","Сайт":"wirecrm.com","Бесплатный тариф":"Нет","Цена (мин. платный)":"499 руб./пользователь/мес","Цена (руб/мес)":499,"Рейтинг":"Топ-10 КП","Рейтинг (число)":null,"Аудитория":"Малый бизнес (продажи, складской учет)","Ключевые функции":"Продажи, складской учет, финансовая аналитика, менеджмент персонала, конструктор модулей, личный кабинет клиента","Мобильное приложение":"Да (заточено под планшеты)","Интеграции":"Магазин модулей (около 100 бесплатных модулей)","Русский интерфейс":"Да","Источник":"https://www.kp.ru/money/biznes/luchshie-crm-sistemy-dlya-malogo-biznesa/","Дата сбора":"2026-03-19","Найден в источниках":2},
+{"Название":"LPTracker","Сайт":"lptracker.ru","Бесплатный тариф":"Нет","Цена (мин. платный)":"1 200 руб./пользователь/мес","Цена (руб/мес)":1200,"Рейтинг":"Топ-10 КП","Рейтинг (число)":null,"Аудитория":"Малый бизнес (агрессивные/телефонные продажи)","Ключевые функции":"Продажи, голосовой бот, автозвонки, идентификация посетителей сайта, автораспределение задач","Мобильное приложение":"Нет (веб-версия в облаке)","Интеграции":"N/A","Русский интерфейс":"Да","Источник":"https://www.kp.ru/money/biznes/luchshie-crm-sistemy-dlya-malogo-biznesa/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"Umnico","Сайт":"umnico.com","Бесплатный тариф":"Нет","Цена (мин. платный)":"от 1 000 руб./мес за одну интеграцию","Цена (руб/мес)":1000,"Рейтинг":"Топ-10 КП","Рейтинг (число)":null,"Аудитория":"Малый бизнес (продажи через соцсети)","Ключевые функции":"Продажи, аналитика, агрегатор 25 соцсетей и мессенджеров, воронка продаж","Мобильное приложение":"Да (iOS и Android)","Интеграции":"25 соцсетей и мессенджеров","Русский интерфейс":"Да","Источник":"https://www.kp.ru/money/biznes/luchshie-crm-sistemy-dlya-malogo-biznesa/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"EasyWeek","Сайт":"easyweek.io","Бесплатный тариф":"Нет","Цена (мин. платный)":"от 500 руб./мес за человека","Цена (руб/мес)":500,"Рейтинг":"Топ-10 КП","Рейтинг (число)":null,"Аудитория":"Малый бизнес (сфера услуг, онлайн-запись)","Ключевые функции":"Запись клиентов, аналитика, создание сайта, программы лояльности, расчет зарплаты","Мобильное приложение":"Да (iOS и Android)","Интеграции":"N/A","Русский интерфейс":"Да","Источник":"https://www.kp.ru/money/biznes/luchshie-crm-sistemy-dlya-malogo-biznesa/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"Social CRM","Сайт":"socialcrm.ru","Бесплатный тариф":"Нет","Цена (мин. платный)":"899 руб./пользователь/мес","Цена (руб/мес)":899,"Рейтинг":"Топ-10 КП","Рейтинг (число)":null,"Аудитория":"Малый бизнес (продажи через соцсети)","Ключевые функции":"Продажи, клиентская база, напоминания, виджет для соцсетей","Мобильное приложение":"Нет (веб-версия в облаке)","Интеграции":"Российские соцсети (ВКонтакте и др.)","Русский интерфейс":"Да","Источник":"https://www.kp.ru/money/biznes/luchshie-crm-sistemy-dlya-malogo-biznesa/","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"BPMSoft","Сайт":"N/A","Бесплатный тариф":"Нет","Цена (мин. платный)":"по запросу, ориентировочно 500К–5М ₽/год","Цена (руб/мес)":42,"Рейтинг":"UX: 8.5/10","Рейтинг (число)":4.2,"Аудитория":"Enterprise и верхний сегмент среднего бизнеса","Ключевые функции":"BPM-движок, ML-анализ тональности, прогнозирование, автоклассификация, предиктивный скоринг, low-code","Мобильное приложение":"N/A","Интеграции":"Сертификат ФСТЭК, PostgreSQL, Astra Linux","Русский интерфейс":"Да","Источник":"https://vc.ru/services/2728606-obzor-crm-sistem-rossii-2026","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"ELMA365","Сайт":"N/A","Бесплатный тариф":"Нет","Цена (мин. платный)":"от 42 ₽/пользователь/мес (базовый) до 980 ₽/пользователь/мес (Enterprise)","Цена (руб/мес)":42,"Рейтинг":"UX: 7.5/10","Рейтинг (число)":3.8,"Аудитория":"Enterprise и крупный средний бизнес","Ключевые функции":"Low-code платформа №1 в России, CRM-модуль в экосистеме (СЭД, BPMS, Service Desk), автоматизация процессов","Мобильное приложение":"N/A","Интеграции":"СЭД, BPMS, Service Desk, on-premise","Русский интерфейс":"Да","Источник":"https://vc.ru/services/2728606-obzor-crm-sistem-rossii-2026","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"Citeck ECOS","Сайт":"N/A","Бесплатный тариф":"Да","Цена (мин. платный)":"Standard и Enterprise — по запросу","Цена (руб/мес)":null,"Рейтинг":"CNewsMarket: 8-е место","Рейтинг (число)":null,"Аудитория":"Enterprise и средний бизнес","Ключевые функции":"ECM + BPM + CRM, 20+ модулей (CRM, СЭД, Service Desk, договоры, Project Tracker), AI-ассистент на LLM","Мобильное приложение":"N/A","Интеграции":"ECM, BPM, Service Desk, управление договорами, open-source","Русский интерфейс":"Да","Источник":"https://vc.ru/services/2728606-obzor-crm-sistem-rossii-2026","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"1С:CRM","Сайт":"N/A","Бесплатный тариф":"Нет","Цена (мин. платный)":"31 200 ₽ единовременно + 12 650 ₽/доп. место","Цена (руб/мес)":31200,"Рейтинг":"UX: 5.0/10","Рейтинг (число)":2.5,"Аудитория":"Производство, торговля, компании с глубокой привязкой к 1С:ERP","Ключевые функции":"Сквозной учёт с 1С:Бухгалтерией и 1С:ERP, iПомощники (YandexGPT, GigaChat, Claude), классификация писем 95%","Мобильное приложение":"N/A","Интеграции":"1С:Бухгалтерия, 1С:ERP, YandexGPT, GigaChat, Claude","Русский интерфейс":"Да","Источник":"https://vc.ru/services/2728606-obzor-crm-sistem-rossii-2026","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"YClients","Сайт":"N/A","Бесплатный тариф":"Нет","Цена (мин. платный)":"от 694 ₽/мес","Цена (руб/мес)":694,"Рейтинг":"UX: 8.0/10, приложение 4.7★","Рейтинг (число)":4.0,"Аудитория":"Сфера услуг (салоны, клиники, фитнес), 55 000+ компаний","Ключевые функции":"Запись онлайн, управление клиентами в сфере услуг, 20 млн записей в месяц","Мобильное приложение":"Да (4.7★)","Интеграции":"N/A","Русский интерфейс":"Да","Источник":"https://vc.ru/services/2728606-obzor-crm-sistem-rossii-2026","Дата сбора":"2026-03-19","Найден в источниках":1},
+{"Название":"EstateCRM","Сайт":"N/A","Бесплатный тариф":"Нет","Цена (мин. платный)":"от ~1 925 ₽/пользователь/мес","Цена (руб/мес)":1925,"Рейтинг":"N/A","Рейтинг (число)":null,"Аудитория":"Застройщики, девелоперы, агентства недвижимости","Ключевые функции":"Шахматка объектов, динамическое ценообразование, публикация на ЦИАН/Авито/ДомКлик, ипотечное сопровождение, электронная регистрация","Мобильное приложение":"Да, с offline-режимом","Интеграции":"ЦИАН, Авито, ДомКлик, BPMSoft (базовая платформа)","Русский интерфейс":"Да","Источник":"https://vc.ru/services/2728606-obzor-crm-sistem-rossii-2026","Дата сбора":"2026-03-19","Найден в источниках":1}
+];
+
+let filteredData = [...allData];
+let activeFilters = {};
+let rangeFilters = {};
+let gridApi = null;
+let chartInstances = {};
+
+// Currency symbol for Russian rubles
+window._currencySymbol = '';
+
+// === CHART PALETTE ===
+const CHART_COLORS = ['#60a5fa','#34d399','#fbbf24','#f87171','#a78bfa','#22d3ee','#fb923c','#e879f9'];
+
+// === TOOLTIP STYLE (anti-pattern fix: dark tooltips) ===
+const TOOLTIP_STYLE = 'background:#1e293b;color:#f1f5f9;border:1px solid #334155;border-radius:8px;padding:10px 14px;font-size:13px;max-width:400px;word-wrap:break-word;';
+
+// === UTILITY: formatNumber ===
+function formatNumber(value, type) {
+    if (value === null || value === undefined || value === '') return '<span class="badge-na">N/A</span>';
+    var num = parseFloat(value);
+    if (isNaN(num)) return '<span class="badge-na">N/A</span>';
+    switch (type) {
+        case 'integer':
+            if (Math.abs(num) >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (Math.abs(num) >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return Math.round(num).toLocaleString('ru-RU');
+        case 'currency':
+            if (Math.abs(num) >= 1000000) return (num / 1000000).toFixed(1) + 'M \u20BD';
+            if (Math.abs(num) >= 10000) return (num / 1000).toFixed(1) + 'K \u20BD';
+            return num.toLocaleString('ru-RU') + ' \u20BD';
+        case 'percent':
+            return num.toFixed(1) + '%';
+        case 'rating':
+            var full = Math.floor(num);
+            var half = (num - full) >= 0.5 ? 1 : 0;
+            var empty = 5 - full - half;
+            var stars = '';
+            for (var i = 0; i < full; i++) stars += '\u2605';
+            if (half) stars += '\u00BD';
+            for (var j = 0; j < empty; j++) stars += '<span class="empty">\u2605</span>';
+            return '<span class="rating-stars">' + stars + '</span>';
+        default:
+            return Number.isInteger(num) ? num.toLocaleString('ru-RU') : num.toFixed(2);
+    }
+}
+
+function formatNumberText(value, type) {
+    if (value === null || value === undefined || value === '') return 'N/A';
+    var num = parseFloat(value);
+    if (isNaN(num)) return 'N/A';
+    switch (type) {
+        case 'integer':
+            if (Math.abs(num) >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+            if (Math.abs(num) >= 1000) return (num / 1000).toFixed(1) + 'K';
+            return Math.round(num).toLocaleString('ru-RU');
+        case 'currency':
+            if (Math.abs(num) >= 1000000) return (num / 1000000).toFixed(1) + 'M \u20BD';
+            if (Math.abs(num) >= 10000) return (num / 1000).toFixed(1) + 'K \u20BD';
+            return num.toLocaleString('ru-RU') + ' \u20BD';
+        case 'rating':
+            return num.toFixed(1) + ' / 5';
+        default:
+            return Number.isInteger(num) ? num.toLocaleString('ru-RU') : num.toFixed(2);
+    }
+}
+
+// === LOADING SKELETON ===
+function renderLoadingSkeleton() {
+    var kpiGrid = document.getElementById('kpi-grid');
+    kpiGrid.innerHTML = '';
+    for (var i = 0; i < 4; i++) {
+        var sk = document.createElement('div');
+        sk.className = 'skeleton skeleton-kpi';
+        kpiGrid.appendChild(sk);
+    }
+    var cp = document.getElementById('chart-primary');
+    if (cp) cp.innerHTML = '<div class="skeleton skeleton-chart"></div>';
+    var cc = document.getElementById('chart-comparison');
+    if (cc) cc.innerHTML = '<div class="skeleton skeleton-chart"></div>';
+    var dt = document.getElementById('data-table');
+    if (dt) dt.innerHTML = '<div class="skeleton skeleton-table"></div>';
+}
+
+// === BADGE RENDERER ===
+function badgeRenderer(val) {
+    if (!val || val === 'N/A' || val === 'n/a') return '<span class="badge-na">N/A</span>';
+    var v = String(val).trim().toLowerCase();
+    if (v.startsWith('да')) return '<span class="badge-yes">Да</span>';
+    if (v === 'нет') return '<span class="badge-no">Нет</span>';
+    return '<span class="badge-partial">' + val + '</span>';
+}
+
+// === KPI CARDS ===
+function renderKPIs() {
+    var grid = document.getElementById('kpi-grid');
+    grid.innerHTML = '';
+
+    var totalCRM = allData.length;
+    var withFree = allData.filter(function(d) {
+        var v = String(d['\u0411\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u044b\u0439 \u0442\u0430\u0440\u0438\u0444'] || '').toLowerCase();
+        return v.startsWith('да');
+    }).length;
+
+    var prices = allData.map(function(d) { return d['\u0426\u0435\u043d\u0430 (\u0440\u0443\u0431/\u043c\u0435\u0441)']; }).filter(function(p) { return p !== null && p !== undefined && !isNaN(parseFloat(p)) && parseFloat(p) > 0; }).map(Number).sort(function(a,b){return a-b;});
+    var medianPrice = 0;
+    if (prices.length > 0) {
+        var mid = Math.floor(prices.length / 2);
+        medianPrice = prices.length % 2 !== 0 ? prices[mid] : Math.round((prices[mid - 1] + prices[mid]) / 2);
+    }
+
+    var ratings = allData.map(function(d) { return d['\u0420\u0435\u0439\u0442\u0438\u043d\u0433 (\u0447\u0438\u0441\u043b\u043e)']; }).filter(function(r) { return r !== null && r !== undefined && !isNaN(parseFloat(r)) && parseFloat(r) > 0; }).map(Number);
+    var avgRating = ratings.length > 0 ? (ratings.reduce(function(a,b){return a+b;},0) / ratings.length).toFixed(1) : 'N/A';
+
+    var kpis = [
+        { label: '\u0412\u0441\u0435\u0433\u043e CRM', value: totalCRM, icon: 'database', color: '#60a5fa' },
+        { label: '\u0421 \u0431\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u044b\u043c \u0442\u0430\u0440\u0438\u0444\u043e\u043c', value: withFree, icon: 'gift', color: '#34d399' },
+        { label: '\u041c\u0435\u0434\u0438\u0430\u043d\u043d\u0430\u044f \u0446\u0435\u043d\u0430', value: formatNumberText(medianPrice, 'currency'), icon: 'banknote', color: '#fbbf24' },
+        { label: '\u0421\u0440\u0435\u0434\u043d\u0438\u0439 \u0440\u0435\u0439\u0442\u0438\u043d\u0433', value: avgRating + ' / 5', icon: 'star', color: '#a78bfa' }
+    ];
+
+    kpis.forEach(function(kpi) {
+        var card = document.createElement('div');
+        card.className = 'glass-card rounded-xl p-4 flex flex-col justify-between';
+        card.innerHTML =
+            '<div class="flex items-center justify-between mb-2">' +
+                '<span class="text-xs text-slate-400 uppercase tracking-wider">' + kpi.label + '</span>' +
+                '<i data-lucide="' + kpi.icon + '" class="w-5 h-5" style="color:' + kpi.color + '"></i>' +
+            '</div>' +
+            '<div class="text-2xl font-bold" style="color:' + kpi.color + '">' + kpi.value + '</div>';
+        grid.appendChild(card);
+    });
+
+    if (window.lucide) lucide.createIcons();
+}
+
+// === PRIMARY CHART: Top-20 Horizontal Bar ===
+function renderPrimaryChart() {
+    var container = document.getElementById('chart-primary');
+    container.innerHTML = '';
+
+    var rated = filteredData.filter(function(d) {
+        return d['\u0420\u0435\u0439\u0442\u0438\u043d\u0433 (\u0447\u0438\u0441\u043b\u043e)'] !== null && d['\u0420\u0435\u0439\u0442\u0438\u043d\u0433 (\u0447\u0438\u0441\u043b\u043e)'] !== undefined && !isNaN(parseFloat(d['\u0420\u0435\u0439\u0442\u0438\u043d\u0433 (\u0447\u0438\u0441\u043b\u043e)'])) && parseFloat(d['\u0420\u0435\u0439\u0442\u0438\u043d\u0433 (\u0447\u0438\u0441\u043b\u043e)']) > 0;
+    }).sort(function(a,b) { return parseFloat(b['\u0420\u0435\u0439\u0442\u0438\u043d\u0433 (\u0447\u0438\u0441\u043b\u043e)']) - parseFloat(a['\u0420\u0435\u0439\u0442\u0438\u043d\u0433 (\u0447\u0438\u0441\u043b\u043e)']); }).slice(0, 20);
+
+    var names = rated.map(function(d) { return d['\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435']; }).reverse();
+    var values = rated.map(function(d) { return parseFloat(d['\u0420\u0435\u0439\u0442\u0438\u043d\u0433 (\u0447\u0438\u0441\u043b\u043e)']); }).reverse();
+
+    if (chartInstances.primary) chartInstances.primary.dispose();
+    var chart = echarts.init(container);
+    chartInstances.primary = chart;
+
+    chart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+            trigger: 'axis',
+            axisPointer: { type: 'shadow' },
+            extraCssText: TOOLTIP_STYLE,
+            formatter: function(params) {
+                var p = params[0];
+                return '<b>' + p.name + '</b><br/>\u0420\u0435\u0439\u0442\u0438\u043d\u0433: ' + p.value.toFixed(1) + ' / 5';
+            }
+        },
+        grid: { left: '3%', right: '8%', bottom: '3%', top: '3%', containLabel: true },
+        xAxis: {
+            type: 'value',
+            max: 5,
+            axisLabel: { color: '#94a3b8', fontSize: 12 },
+            splitLine: { lineStyle: { color: '#334155', type: 'dashed' } },
+            axisLine: { lineStyle: { color: '#334155' } }
+        },
+        yAxis: {
+            type: 'category',
+            data: names,
+            axisLabel: {
+                color: '#f1f5f9',
+                fontSize: 12,
+                formatter: function(v) { return v.length > 15 ? v.substring(0, 15) + '...' : v; }
+            },
+            axisLine: { lineStyle: { color: '#334155' } },
+            axisTick: { show: false }
+        },
+        series: [{
+            type: 'bar',
+            data: values,
+            barWidth: '60%',
+            itemStyle: {
+                borderRadius: [0, 6, 6, 0],
+                color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                    { offset: 0, color: '#60a5fa' },
+                    { offset: 1, color: '#a78bfa' }
+                ])
+            },
+            label: {
+                show: true,
+                position: 'right',
+                color: '#f1f5f9',
+                fontSize: 12,
+                formatter: function(p) { return p.value.toFixed(1); }
+            },
+            animationDuration: 1500,
+            animationDelay: function(idx) { return idx * 80; }
+        }]
+    });
+
+    chart.on('click', function(params) {
+        var row = allData.find(function(d) { return d['\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435'] === params.name; });
+        if (row) openDetailPanel(row);
+    });
+}
+
+// === COMPARISON CHART: Scatter — Price vs Rating, color by Russian UI ===
+function renderComparisonChart() {
+    var container = document.getElementById('chart-comparison');
+    container.innerHTML = '';
+
+    var scatter = filteredData.filter(function(d) {
+        var price = d['\u0426\u0435\u043d\u0430 (\u0440\u0443\u0431/\u043c\u0435\u0441)'];
+        var rating = d['\u0420\u0435\u0439\u0442\u0438\u043d\u0433 (\u0447\u0438\u0441\u043b\u043e)'];
+        return price !== null && price !== undefined && !isNaN(parseFloat(price)) && parseFloat(price) > 0
+            && rating !== null && rating !== undefined && !isNaN(parseFloat(rating)) && parseFloat(rating) > 0;
+    });
+
+    var ruYes = scatter.filter(function(d) { return String(d['\u0420\u0443\u0441\u0441\u043a\u0438\u0439 \u0438\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441'] || '').toLowerCase().startsWith('да'); });
+    var ruNo = scatter.filter(function(d) { return !String(d['\u0420\u0443\u0441\u0441\u043a\u0438\u0439 \u0438\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441'] || '').toLowerCase().startsWith('да'); });
+
+    function mapPoints(arr) {
+        return arr.map(function(d) {
+            return {
+                value: [parseFloat(d['\u0426\u0435\u043d\u0430 (\u0440\u0443\u0431/\u043c\u0435\u0441)']), parseFloat(d['\u0420\u0435\u0439\u0442\u0438\u043d\u0433 (\u0447\u0438\u0441\u043b\u043e)'])],
+                name: d['\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435'],
+                _row: d
+            };
+        });
+    }
+
+    if (chartInstances.comparison) chartInstances.comparison.dispose();
+    var chart = echarts.init(container);
+    chartInstances.comparison = chart;
+
+    chart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+            extraCssText: TOOLTIP_STYLE,
+            formatter: function(params) {
+                var d = params.data;
+                return '<b>' + d.name + '</b><br/>\u0426\u0435\u043d\u0430: ' + formatNumberText(d.value[0], 'currency') + '<br/>\u0420\u0435\u0439\u0442\u0438\u043d\u0433: ' + d.value[1].toFixed(1) + ' / 5';
+            }
+        },
+        legend: {
+            data: ['\u0420\u0443\u0441\u0441\u043a\u0438\u0439 UI', '\u0411\u0435\u0437 \u0440\u0443\u0441\u0441\u043a\u043e\u0433\u043e UI'],
+            textStyle: { color: '#94a3b8', fontSize: 12 },
+            top: 0
+        },
+        grid: { left: '3%', right: '5%', bottom: '10%', top: '12%', containLabel: true },
+        xAxis: {
+            name: '\u0426\u0435\u043d\u0430 (\u0440\u0443\u0431/\u043c\u0435\u0441)',
+            nameLocation: 'center',
+            nameGap: 35,
+            nameTextStyle: { color: '#94a3b8', fontSize: 12 },
+            type: 'log',
+            axisLabel: {
+                color: '#94a3b8',
+                fontSize: 11,
+                formatter: function(v) {
+                    if (v >= 10000) return (v/1000).toFixed(0) + 'K';
+                    return v;
+                }
+            },
+            splitLine: { lineStyle: { color: '#334155', type: 'dashed' } },
+            axisLine: { lineStyle: { color: '#334155' } }
+        },
+        yAxis: {
+            name: '\u0420\u0435\u0439\u0442\u0438\u043d\u0433',
+            nameLocation: 'center',
+            nameGap: 40,
+            nameTextStyle: { color: '#94a3b8', fontSize: 12 },
+            type: 'value',
+            min: 2,
+            max: 5.2,
+            axisLabel: { color: '#94a3b8', fontSize: 11 },
+            splitLine: { lineStyle: { color: '#334155', type: 'dashed' } },
+            axisLine: { lineStyle: { color: '#334155' } }
+        },
+        series: [
+            {
+                name: '\u0420\u0443\u0441\u0441\u043a\u0438\u0439 UI',
+                type: 'scatter',
+                data: mapPoints(ruYes),
+                symbolSize: 14,
+                itemStyle: { color: '#34d399', opacity: 0.85 },
+                emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(52,211,153,0.5)' } }
+            },
+            {
+                name: '\u0411\u0435\u0437 \u0440\u0443\u0441\u0441\u043a\u043e\u0433\u043e UI',
+                type: 'scatter',
+                data: mapPoints(ruNo),
+                symbolSize: 14,
+                itemStyle: { color: '#f87171', opacity: 0.85 },
+                emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(248,113,113,0.5)' } }
+            }
+        ]
+    });
+
+    chart.on('click', function(params) {
+        if (params.data && params.data._row) openDetailPanel(params.data._row);
+    });
+}
+
+// === AG GRID TABLE ===
+function renderTable() {
+    var tableDiv = document.getElementById('data-table');
+    tableDiv.innerHTML = '';
+
+    var columnDefs = [
+        { field: '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435', headerName: '\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435', minWidth: 200, pinned: 'left',
+          cellRenderer: function(params) {
+              return '<span style="color:#60a5fa;cursor:pointer;font-weight:600">' + (params.value || '<span class="badge-na">N/A</span>') + '</span>';
+          }
+        },
+        { field: '\u0411\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u044b\u0439 \u0442\u0430\u0440\u0438\u0444', headerName: '\u0411\u0435\u0441\u043f\u043b.', minWidth: 100,
+          cellRenderer: function(params) { return badgeRenderer(params.value); }
+        },
+        { field: '\u0426\u0435\u043d\u0430 (\u0440\u0443\u0431/\u043c\u0435\u0441)', headerName: '\u0426\u0435\u043d\u0430, \u20BD/\u043c\u0435\u0441', minWidth: 130,
+          cellRenderer: function(params) { return formatNumber(params.value, 'currency'); },
+          comparator: function(a, b) {
+              var na = parseFloat(a), nb = parseFloat(b);
+              if (isNaN(na)) return 1; if (isNaN(nb)) return -1;
+              return na - nb;
+          }
+        },
+        { field: '\u0420\u0435\u0439\u0442\u0438\u043d\u0433 (\u0447\u0438\u0441\u043b\u043e)', headerName: '\u0420\u0435\u0439\u0442\u0438\u043d\u0433', minWidth: 130, sort: 'desc',
+          cellRenderer: function(params) {
+              if (params.value === null || params.value === undefined || isNaN(parseFloat(params.value))) return '<span class="badge-na">N/A</span>';
+              return formatNumber(params.value, 'rating') + ' <span style="color:#94a3b8;font-size:11px;margin-left:4px">' + parseFloat(params.value).toFixed(1) + '</span>';
+          },
+          comparator: function(a, b) {
+              var na = parseFloat(a), nb = parseFloat(b);
+              if (isNaN(na)) return 1; if (isNaN(nb)) return -1;
+              return na - nb;
+          }
+        },
+        { field: '\u0420\u0443\u0441\u0441\u043a\u0438\u0439 \u0438\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441', headerName: '\u0420\u0443\u0441. UI', minWidth: 100,
+          cellRenderer: function(params) { return badgeRenderer(params.value); }
+        },
+        { field: '\u041c\u043e\u0431\u0438\u043b\u044c\u043d\u043e\u0435 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435', headerName: '\u041c\u043e\u0431\u0438\u043b\u044c\u043d\u043e\u0435', minWidth: 120,
+          cellRenderer: function(params) { return badgeRenderer(params.value); }
+        },
+        { field: '\u0410\u0443\u0434\u0438\u0442\u043e\u0440\u0438\u044f', headerName: '\u0410\u0443\u0434\u0438\u0442\u043e\u0440\u0438\u044f', minWidth: 200,
+          cellRenderer: function(params) {
+              var v = params.value || '';
+              return v.length > 60 ? v.substring(0, 60) + '...' : (v || '<span class="badge-na">N/A</span>');
+          }
+        },
+        { field: '\u041d\u0430\u0439\u0434\u0435\u043d \u0432 \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a\u0430\u0445', headerName: '\u0418\u0441\u0442\u043e\u0447\u043d\u0438\u043a\u0438', minWidth: 90 }
+    ];
+
+    var gridOptions = {
+        columnDefs: columnDefs,
+        rowData: filteredData,
+        domLayout: 'normal',
+        defaultColDef: {
+            sortable: true,
+            resizable: true,
+            filter: true
+        },
+        animateRows: true,
+        rowSelection: 'single',
+        onRowClicked: function(event) {
+            openDetailPanel(event.data);
+        },
+        getRowStyle: function(params) {
+            return { cursor: 'pointer' };
+        }
+    };
+
+    gridApi = agGrid.createGrid(tableDiv, gridOptions);
+}
+
+// === FILTERS ===
+function buildFilters() {
+    var dropdownContainer = document.getElementById('filter-dropdowns');
+    var rangeContainer = document.getElementById('filter-range-sliders');
+    dropdownContainer.innerHTML = '';
+    rangeContainer.innerHTML = '';
+
+    // Dropdown: Бесплатный тариф
+    var freeValues = ['Все', 'Да', 'Нет'];
+    dropdownContainer.innerHTML +=
+        '<div class="mb-3">' +
+            '<label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">\u0411\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u044b\u0439 \u0442\u0430\u0440\u0438\u0444</label>' +
+            '<select id="filter-free" onchange="applyFilters()" class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500">' +
+                freeValues.map(function(v) { return '<option value="' + v + '">' + v + '</option>'; }).join('') +
+            '</select>' +
+        '</div>';
+
+    // Dropdown: Русский интерфейс
+    var ruValues = ['Все', 'Да', 'Нет'];
+    dropdownContainer.innerHTML +=
+        '<div class="mb-3">' +
+            '<label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">\u0420\u0443\u0441\u0441\u043a\u0438\u0439 \u0438\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441</label>' +
+            '<select id="filter-ru" onchange="applyFilters()" class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500">' +
+                ruValues.map(function(v) { return '<option value="' + v + '">' + v + '</option>'; }).join('') +
+            '</select>' +
+        '</div>';
+
+    // Range slider: Price
+    var allPrices = allData.map(function(d) { return d['\u0426\u0435\u043d\u0430 (\u0440\u0443\u0431/\u043c\u0435\u0441)']; }).filter(function(p) { return p !== null && p !== undefined && !isNaN(parseFloat(p)) && parseFloat(p) > 0; }).map(Number);
+    if (allPrices.length > 0) {
+        var minP = Math.min.apply(null, allPrices);
+        var maxP = Math.max.apply(null, allPrices);
+        rangeContainer.innerHTML =
+            '<div class="mb-3">' +
+                '<label class="block text-xs uppercase tracking-wider text-slate-400 mb-1">\u0426\u0435\u043d\u0430 (\u0440\u0443\u0431/\u043c\u0435\u0441)</label>' +
+                '<div class="flex items-center gap-2">' +
+                    '<input type="number" id="price-min" value="' + minP + '" min="' + minP + '" max="' + maxP + '" ' +
+                        'class="w-full px-2 py-1 bg-surface border border-border rounded text-sm text-white text-center" oninput="applyFilters()">' +
+                    '<span class="text-slate-400 text-xs">\u2014</span>' +
+                    '<input type="number" id="price-max" value="' + maxP + '" min="' + minP + '" max="' + maxP + '" ' +
+                        'class="w-full px-2 py-1 bg-surface border border-border rounded text-sm text-white text-center" oninput="applyFilters()">' +
+                '</div>' +
+                '<div class="range-slider-labels mt-1"><span>' + formatNumberText(minP, 'currency') + '</span><span>' + formatNumberText(maxP, 'currency') + '</span></div>' +
+            '</div>';
+    }
+}
+
+function applyFilters() {
+    var search = (document.getElementById('search-input').value || '').toLowerCase();
+    var freeFilter = document.getElementById('filter-free') ? document.getElementById('filter-free').value : 'Все';
+    var ruFilter = document.getElementById('filter-ru') ? document.getElementById('filter-ru').value : 'Все';
+    var priceMin = document.getElementById('price-min') ? parseFloat(document.getElementById('price-min').value) : 0;
+    var priceMax = document.getElementById('price-max') ? parseFloat(document.getElementById('price-max').value) : Infinity;
+
+    filteredData = allData.filter(function(d) {
+        // Search
+        if (search) {
+            var match = false;
+            for (var key in d) {
+                if (String(d[key] || '').toLowerCase().indexOf(search) !== -1) { match = true; break; }
+            }
+            if (!match) return false;
+        }
+
+        // Free plan filter
+        if (freeFilter !== 'Все') {
+            var fv = String(d['\u0411\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u044b\u0439 \u0442\u0430\u0440\u0438\u0444'] || '').toLowerCase();
+            if (freeFilter === 'Да' && !fv.startsWith('да')) return false;
+            if (freeFilter === 'Нет' && fv.startsWith('да')) return false;
+        }
+
+        // Russian UI filter
+        if (ruFilter !== 'Все') {
+            var rv = String(d['\u0420\u0443\u0441\u0441\u043a\u0438\u0439 \u0438\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441'] || '').toLowerCase();
+            if (ruFilter === 'Да' && !rv.startsWith('да')) return false;
+            if (ruFilter === 'Нет' && rv.startsWith('да')) return false;
+        }
+
+        // Price range
+        if (!isNaN(priceMin) || !isNaN(priceMax)) {
+            var price = parseFloat(d['\u0426\u0435\u043d\u0430 (\u0440\u0443\u0431/\u043c\u0435\u0441)']);
+            if (!isNaN(price) && price > 0) {
+                if (!isNaN(priceMin) && price < priceMin) return false;
+                if (!isNaN(priceMax) && price > priceMax) return false;
+            }
+        }
+
+        return true;
+    });
+
+    document.getElementById('record-count').textContent = filteredData.length;
+
+    // Update charts
+    renderPrimaryChart();
+    renderComparisonChart();
+
+    // Update table
+    if (gridApi) {
+        gridApi.setGridOption('rowData', filteredData);
+    }
+}
+
+function resetFilters() {
+    document.getElementById('search-input').value = '';
+    if (document.getElementById('filter-free')) document.getElementById('filter-free').value = 'Все';
+    if (document.getElementById('filter-ru')) document.getElementById('filter-ru').value = 'Все';
+
+    var allPrices = allData.map(function(d) { return d['\u0426\u0435\u043d\u0430 (\u0440\u0443\u0431/\u043c\u0435\u0441)']; }).filter(function(p) { return p !== null && p !== undefined && !isNaN(parseFloat(p)) && parseFloat(p) > 0; }).map(Number);
+    if (allPrices.length > 0) {
+        if (document.getElementById('price-min')) document.getElementById('price-min').value = Math.min.apply(null, allPrices);
+        if (document.getElementById('price-max')) document.getElementById('price-max').value = Math.max.apply(null, allPrices);
+    }
+
+    applyFilters();
+}
+
+// === DETAIL PANEL ===
+function openDetailPanel(row) {
+    var panel = document.getElementById('detail-panel');
+    var overlay = document.getElementById('detail-overlay');
+    var title = document.getElementById('detail-title');
+    var content = document.getElementById('detail-content');
+
+    title.textContent = row['\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u0435'] || 'Детали';
+
+    var html = '';
+
+    // Rating
+    html += '<div class="detail-field"><div class="detail-label">\u0420\u0435\u0439\u0442\u0438\u043d\u0433</div><div class="detail-value">' +
+        (row['\u0420\u0435\u0439\u0442\u0438\u043d\u0433 (\u0447\u0438\u0441\u043b\u043e)'] !== null && row['\u0420\u0435\u0439\u0442\u0438\u043d\u0433 (\u0447\u0438\u0441\u043b\u043e)'] !== undefined && !isNaN(parseFloat(row['\u0420\u0435\u0439\u0442\u0438\u043d\u0433 (\u0447\u0438\u0441\u043b\u043e)']))
+            ? formatNumber(row['\u0420\u0435\u0439\u0442\u0438\u043d\u0433 (\u0447\u0438\u0441\u043b\u043e)'], 'rating') + ' <span style="color:#94a3b8;margin-left:6px">' + row['\u0420\u0435\u0439\u0442\u0438\u043d\u0433'] + '</span>'
+            : (row['\u0420\u0435\u0439\u0442\u0438\u043d\u0433'] || '<span class="badge-na">N/A</span>'))
+        + '</div></div>';
+
+    // Price
+    html += '<div class="detail-field"><div class="detail-label">\u0426\u0435\u043d\u0430</div><div class="detail-value">' +
+        (row['\u0426\u0435\u043d\u0430 (\u0440\u0443\u0431/\u043c\u0435\u0441)'] !== null && row['\u0426\u0435\u043d\u0430 (\u0440\u0443\u0431/\u043c\u0435\u0441)'] !== undefined && !isNaN(parseFloat(row['\u0426\u0435\u043d\u0430 (\u0440\u0443\u0431/\u043c\u0435\u0441)']))
+            ? formatNumber(row['\u0426\u0435\u043d\u0430 (\u0440\u0443\u0431/\u043c\u0435\u0441)'], 'currency')
+            : '<span class="badge-na">N/A</span>')
+        + '<br/><span style="color:#94a3b8;font-size:12px">' + (row['\u0426\u0435\u043d\u0430 (\u043c\u0438\u043d. \u043f\u043b\u0430\u0442\u043d\u044b\u0439)'] || '') + '</span></div></div>';
+
+    // Free plan
+    html += '<div class="detail-field"><div class="detail-label">\u0411\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u044b\u0439 \u0442\u0430\u0440\u0438\u0444</div><div class="detail-value">' +
+        badgeRenderer(row['\u0411\u0435\u0441\u043f\u043b\u0430\u0442\u043d\u044b\u0439 \u0442\u0430\u0440\u0438\u0444']) + '</div></div>';
+
+    // Russian UI
+    html += '<div class="detail-field"><div class="detail-label">\u0420\u0443\u0441\u0441\u043a\u0438\u0439 \u0438\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441</div><div class="detail-value">' +
+        badgeRenderer(row['\u0420\u0443\u0441\u0441\u043a\u0438\u0439 \u0438\u043d\u0442\u0435\u0440\u0444\u0435\u0439\u0441']) + '</div></div>';
+
+    // Mobile app
+    html += '<div class="detail-field"><div class="detail-label">\u041c\u043e\u0431\u0438\u043b\u044c\u043d\u043e\u0435 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435</div><div class="detail-value">' +
+        badgeRenderer(row['\u041c\u043e\u0431\u0438\u043b\u044c\u043d\u043e\u0435 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435']) + '</div></div>';
+
+    // Audience
+    html += '<div class="detail-field"><div class="detail-label">\u0410\u0443\u0434\u0438\u0442\u043e\u0440\u0438\u044f</div><div class="detail-value">' +
+        (row['\u0410\u0443\u0434\u0438\u0442\u043e\u0440\u0438\u044f'] || '<span class="badge-na">N/A</span>') + '</div></div>';
+
+    // Key features (hidden from table, shown in detail)
+    html += '<div class="detail-field"><div class="detail-label">\u041a\u043b\u044e\u0447\u0435\u0432\u044b\u0435 \u0444\u0443\u043d\u043a\u0446\u0438\u0438</div><div class="detail-value" style="line-height:1.6">' +
+        (row['\u041a\u043b\u044e\u0447\u0435\u0432\u044b\u0435 \u0444\u0443\u043d\u043a\u0446\u0438\u0438'] || '<span class="badge-na">N/A</span>') + '</div></div>';
+
+    // Integrations (hidden from table, shown in detail)
+    html += '<div class="detail-field"><div class="detail-label">\u0418\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u0438</div><div class="detail-value" style="line-height:1.6">' +
+        (row['\u0418\u043d\u0442\u0435\u0433\u0440\u0430\u0446\u0438\u0438'] || '<span class="badge-na">N/A</span>') + '</div></div>';
+
+    // Website
+    var site = row['\u0421\u0430\u0439\u0442'];
+    if (site && site !== 'N/A') {
+        var url = site.startsWith('http') ? site : 'https://' + site;
+        html += '<div class="detail-field"><div class="detail-label">\u0421\u0430\u0439\u0442</div><div class="detail-value"><a href="' + url + '" target="_blank" rel="noopener" style="color:#60a5fa">' + site + '</a></div></div>';
+    }
+
+    // Source
+    html += '<div class="detail-field"><div class="detail-label">\u0418\u0441\u0442\u043e\u0447\u043d\u0438\u043a</div><div class="detail-value"><a href="' + (row['\u0418\u0441\u0442\u043e\u0447\u043d\u0438\u043a'] || '#') + '" target="_blank" rel="noopener" style="color:#60a5fa;font-size:12px;word-break:break-all">' + (row['\u0418\u0441\u0442\u043e\u0447\u043d\u0438\u043a'] || 'N/A') + '</a></div></div>';
+
+    content.innerHTML = html;
+    panel.classList.add('open');
+    overlay.classList.add('open');
+}
+
+function closeDetailPanel() {
+    document.getElementById('detail-panel').classList.remove('open');
+    document.getElementById('detail-overlay').classList.remove('open');
+}
+
+// === EXPORT CSV ===
+function exportCsv() {
+    var headers = Object.keys(filteredData[0] || {});
+    var csv = '\uFEFF' + headers.join(',') + '\n';
+    filteredData.forEach(function(row) {
+        csv += headers.map(function(h) {
+            var v = row[h];
+            if (v === null || v === undefined) return '';
+            v = String(v).replace(/"/g, '""');
+            return '"' + v + '"';
+        }).join(',') + '\n';
+    });
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'crm-systems-2026.csv';
+    a.click();
+}
+
+// === SIDEBAR TOGGLE ===
+function toggleSidebar() {
+    document.getElementById('filter-sidebar').classList.toggle('open');
+}
+
+// === ESC KEY ===
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeDetailPanel();
+});
+
+// === WINDOW RESIZE ===
+window.addEventListener('resize', function() {
+    if (chartInstances.primary) chartInstances.primary.resize();
+    if (chartInstances.comparison) chartInstances.comparison.resize();
+});
+
+// === INIT ===
+(function init() {
+    renderLoadingSkeleton();
+
+    setTimeout(function() {
+        document.getElementById('record-count').textContent = allData.length;
+        renderKPIs();
+        buildFilters();
+        renderPrimaryChart();
+        renderComparisonChart();
+        renderTable();
+        if (window.lucide) lucide.createIcons();
+    }, 400);
+})();
+</script>
+</body>
+</html>
